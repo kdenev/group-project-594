@@ -1,12 +1,16 @@
 package edu.upenn.cit5940.datamanagement;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
@@ -16,6 +20,7 @@ import com.opencsv.CSVReaderBuilder;
 public class LoadData {
 
     private String filePath;
+    private static final String stopWordsFilePath = "src/main/java/edu/upenn/cit5940/datamanagement/data/stop_words.txt";
 
     public LoadData(String filePath) {
 
@@ -85,8 +90,8 @@ public class LoadData {
                     articleCols.add(line[4]);
                     // Body
                     articleCols.add(line[5]);
-                    // Combined text 
-                    articleCols.add(combinedText);
+                    // Combined text
+                    articleCols.add(combinedText.toLowerCase());
 
                     articles.put(line[0], articleCols);
 
@@ -109,6 +114,78 @@ public class LoadData {
     public Map<String, ArrayList<String>> getJSONArticles() {
 
         return null;
+    }
+
+    public static Set<String> getStopWords() {
+
+        // Define return set
+        Set<String> stopWords = new HashSet();
+
+        // If input is null return empty list
+        // if (stopWordsFilePath == null) {
+
+        //     return stopWords;
+        // }
+
+        // Define text processing variables
+        File file = new File(stopWordsFilePath);
+        FileReader fileReader = null;
+        BufferedReader bufferedReader = null;
+
+        // Set up the reading variables
+        try {
+            fileReader = new FileReader(file);
+            bufferedReader = new BufferedReader(fileReader);
+
+            // Placeholder variable for the line by line processing
+            // of the file
+            String line;
+
+            // Loop through the file until there is a line
+            while ((line = bufferedReader.readLine()) != null) {
+
+                if (!"".equals(line.strip())) {
+
+                    stopWords.add(line.strip());
+
+                }
+
+            }
+
+            // Handle exception if they occur during the file read
+        } catch (FileNotFoundException e) {
+
+            // Get and print filename
+            // Commented for gradescope submission
+            // System.out.println("Sorry, " + file.getName() + " not found.");
+
+        } catch (IOException e) {
+
+            // Print the error message
+            e.printStackTrace();
+
+        } finally {
+
+            // Close file objects
+            try {
+
+                if (bufferedReader != null) {
+                    bufferedReader.close();
+                }
+
+                if (fileReader != null) {
+                    fileReader.close();
+                }
+
+            } catch (IOException e) {
+
+                e.printStackTrace();
+
+            }
+        }
+
+        return stopWords;
+
     }
 
 }

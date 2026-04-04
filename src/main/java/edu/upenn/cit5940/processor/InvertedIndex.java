@@ -3,46 +3,16 @@ package edu.upenn.cit5940.processor;
 //import any classes you will need
 import java.util.*;
 
+import edu.upenn.cit5940.datamanagement.LoadData;
 
 public class InvertedIndex {
 
-    // Root of the BST
-    private BSTNode root;
-
-    // define a private static inner class that represents a node in the BST
-    private static class BSTNode {
-        // keyWord that is indexed
-        String keyWord;
-        // set of IDs where the keyWord appears
-        Set<Integer> documentIDs;
-        // the left node stores keywords less than this node's keyword
-        // the right node stores keywords greater than this node's keyword
-        BSTNode left, right;
-
-        // constructor to initialize each node
-        BSTNode(String keyWord, int docID) {
-            this.keyWord = keyWord;
-            this.documentIDs = new HashSet<>();
-            this.documentIDs.add(docID);
-        }
-    }
+    // Map holds keyword and set of ids
+    private Map<String, Set<String>> keywords = new HashMap<>();
+    private Map<String, Set<String>> dates = new HashMap<>();
 
     // DO NOT CHANGE THE FOLLOWING SET OF STOP_WORDS
-    private static final Set<String> STOP_WORDS = Set.of(
-            "i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your",
-            "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she",
-            "her", "hers", "herself", "it", "its", "itself", "they", "them", "their",
-            "theirs", "themselves", "what", "which", "who", "whom", "this", "that",
-            "these", "those", "am", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an",
-            "the", "and", "but", "if", "or", "because", "as", "until", "while",
-            "of", "at", "by", "for", "with", "about", "against", "between", "into", "through",
-            "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off",
-            "over", "under", "again", "further", "then", "once", "here", "there", "when",
-            "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
-            "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just",
-            "don", "should", "now", "said", "announced", "company", "industry", "technology", "system", "application",
-            "software", "update", "service");
+    private static final Set<String> STOP_WORDS = LoadData.getStopWords();
 
     /*
      * This method adds a document
@@ -52,7 +22,7 @@ public class InvertedIndex {
      * @return no return
      */
     // addDocument
-    public void addDocument(int docID, String text) {
+    public void addDocument(String docID, String text, String title, String date) {
 
         // Handle null input
         if (text == null)
@@ -61,20 +31,28 @@ public class InvertedIndex {
         // Get the words
         HashSet<String> tokens = tokenizeText(text);
 
+        // Create map for keywords
         for (String t : tokens) {
 
             if (t == null || t == "")
                 continue;
 
-            if (this.root == null) {
+            expandMap(keywords, t, docID);
 
-                this.root = new BSTNode(t, docID);
-            } else {
+            // if (keywords.containsKey(t)) {
 
-                addWord(t, docID, this.root);
-            }
+            // Set<String> docIds = new HashSet<>(keywords.get(t));
+            // docIds.add(docID);
+
+            // } else {
+
+            // keywords.put(t, Set.of(docID));
+            // }
 
         }
+
+        // Create map for dates
+        expandMap(dates, date, title);
 
         return;
     }
@@ -87,55 +65,33 @@ public class InvertedIndex {
      * @return Set<Integer>
      */
     // search
-    public Set<Integer> search(String query) {
+    public Set<String> search(String query) {
 
-        Set<Integer> returnSet = new HashSet<>();
+        Set<String> returnSet = new HashSet<>();
 
-        if (query == null || this.root == null || query.equals(""))
+        if (query == null || query.equals(""))
             return returnSet;
 
         HashSet<String> processedQuery = tokenizeText(query);
 
         for (String word : processedQuery) {
 
-            BSTNode node = traverseNode(this.root, word);
-
-            if (node.documentIDs.contains(-1))
+            if (!keywords.containsKey(word))
                 continue;
 
             if (returnSet.isEmpty()) {
 
-                returnSet.addAll(node.documentIDs);
+                returnSet.addAll(keywords.get(word));
 
             } else {
 
-                returnSet.retainAll(node.documentIDs);
+                returnSet.retainAll(keywords.get(word));
 
             }
 
         }
 
         return returnSet;
-
-    }
-
-    /*
-     * This method removes a document based on the docID
-     * 
-     * @param int docID
-     * 
-     * @return void
-     */
-    // to remove a document traverse the entire tree and remove the given docID from
-    // the node's set
-    // remove the document ID
-    public void removeDocument(int docID) {
-
-        // There is no docid with 0
-        if (docID == 0)
-            return;
-
-        removeDocID(this.root, docID);
 
     }
 
@@ -148,58 +104,19 @@ public class InvertedIndex {
      * @return Map<String, Set<Integer>>
      */
     // returns the map of the inverted index
-    public Map<String, Set<Integer>> getIndex() {
+    public void getArticalByIndex(String uri, Map<String, ArrayList<String>> articles) {
 
-        Map<String, Set<Integer>> indexMap = new HashMap<>();
+        // Display article information
+        System.out.println("Id: " + uri);
+        System.out.println("Date: " + articles.get(uri).get(0));
+        System.out.println("Title: " + articles.get(uri).get(1));
+        System.out.println("Body: " + articles.get(uri).get(2));
 
-        traverseMap(this.root, indexMap);
-
-        return indexMap;
     }
 
     /*
      * TODO: Implement helper methods below
      */
-
-    private boolean addWord(String token, int docID, BSTNode node) {
-
-        // Word already in the map
-        if (node.keyWord.compareTo(token) == 0) {
-
-            node.documentIDs.add(docID);
-            return false;
-
-            // Token higher value
-        } else if (node.keyWord.compareTo(token) < 0) {
-
-            if (node.right == null) {
-
-                node.right = new BSTNode(token, docID);
-                return true;
-
-            } else {
-
-                return addWord(token, docID, node.right);
-
-            }
-
-            // Token lower value
-        } else {
-
-            if (node.left == null) {
-
-                node.left = new BSTNode(token, docID);
-                return true;
-
-            } else {
-
-                return addWord(token, docID, node.left);
-
-            }
-
-        }
-
-    }
 
     private HashSet<String> tokenizeText(String text) {
 
@@ -217,49 +134,17 @@ public class InvertedIndex {
         return returnSet;
     }
 
-    private void traverseMap(BSTNode node, Map<String, Set<Integer>> indexMap) {
+    private void expandMap(Map<String, Set<String>> mapToExpand, String id, String value) {
 
-        if (node == null)
-            return;
+        if (mapToExpand.containsKey(id)) {
 
-        indexMap.put(node.keyWord, node.documentIDs);
-
-        traverseMap(node.left, indexMap);
-        traverseMap(node.right, indexMap);
-
-    }
-
-    private BSTNode traverseNode(BSTNode node, String query) {
-
-        if (node == null)
-            return new BSTNode(query, -1);
-
-        if (node.keyWord.equals(query)) {
-
-            return node;
-
-        } else if (node.keyWord.compareTo(query) > 0) {
-
-            return traverseNode(node.left, query);
+            Set<String> values = new HashSet<>(mapToExpand.get(id));
+            values.add(value);
 
         } else {
 
-            return traverseNode(node.right, query);
-
+            mapToExpand.put(id, Set.of(value));
         }
-
-    }
-
-    private void removeDocID(BSTNode node, Integer id) {
-
-        if (node == null)
-            return;
-
-        if (node.documentIDs != null && node.documentIDs.contains(id))
-            node.documentIDs.remove(id);
-
-        removeDocID(node.left, id);
-        removeDocID(node.right, id);
 
     }
 
